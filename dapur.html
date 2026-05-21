@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dasbor Admin Dapur | Seblak Mbak Ana</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --primary: #ff512f;
+        --bg-dark: #0b0b0f;
+        --card-bg: #13131a;
+        --text-main: #f3f4f6;
+        --text-muted: #9ca3af;
+    }
+    body {
+        background: var(--bg-dark);
+        color: var(--text-main);
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        padding: 40px 6%;
+    }
+    h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 5px; }
+    p { color: var(--text-muted); font-size: 14px; margin-bottom: 30px; }
+    .option-title {
+        font-size: 14px; font-weight: 700; text-transform: uppercase;
+        color: var(--primary); margin: 35px 0 15px; letter-spacing: 0.5px;
+    }
+    .dapur-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;
+    }
+    .dapur-btn {
+        padding: 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.08);
+        background: #1c1c24; color: white; cursor: pointer; font-weight: 600;
+        font-size: 13px; display: flex; justify-content: space-between; align-items: center;
+        transition: all 0.2s ease;
+    }
+    .dapur-btn:hover { transform: translateY(-2px); background: #22222d; border-color: rgba(255,255,255,0.2); }
+    .dapur-btn.habis { border-color: #ff4d4d; background: rgba(255, 77, 77, 0.1); }
+    .status-indicator { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+    .status-indicator.ready { background: #00b300; color: white; }
+    .status-indicator.empty { background: #ff4d4d; color: white; }
+</style>
+</head>
+<body>
+
+    <h1>👨‍🍳 Kontrol Dapur Mbak Ana</h1>
+    <p>Silakan klik pada menu atau topping di bawah ini untuk mengubah status ketersediaan di e-menu pelanggan secara langsung.</p>
+    
+    <div class="option-title">Status Ketersediaan Menu</div>
+    <div class="dapur-grid" id="dapurMenuGrid"></div>
+
+    <div class="option-title" style="margin-top: 50px;">Status Ketersediaan Topping</div>
+    <div class="dapur-grid" id="dapurToppingGrid"></div>
+
+<script>
+// Sinkronisasi data MASTER
+const MASTER_MENU = [
+    { nama: 'Seblak Ceker' }, { nama: 'Seblak Seafood' }, { nama: 'Seblak Bakso' },
+    { nama: 'Seblak Mie' }, { nama: 'Seblak Balungan' }, { nama: 'Seblak Komplit' }, { nama: 'Seblak Mie Komplit' },
+    { nama: 'Mie Ayam Bakso' }, { nama: 'Mie Ayam Bakso Urat' }, { nama: 'Mie Ayam Ceker' }, { nama: 'Mie Ayam Balungan' }, { nama: 'Mie Ayam Komplit' },
+    { nama: 'Teh (Es/Hangat)' }, { nama: 'Tea Jus' }
+];
+
+const MASTER_TOPPING = [
+    { nama: "Sayap" }, { nama: "Indomie" }, { nama: "Sosis Jumbo" }, { nama: "Bakso Urat" }, { nama: "Kue Ikan Pedas" }, 
+    { nama: "Jamur Enoki" }, { nama: "Telur" }, { nama: "Udang Gulung" }, { nama: "Duo Twister" }, { nama: "Dumpling Ayam" }, 
+    { nama: "Dumpling Keju" }, { nama: "Fish Roll" }, { nama: "Flower Twister" }, { nama: "Sosis" }, { nama: "Ekado" }, 
+    { nama: "Dimsum" }, { nama: "Crab Stick" }, { nama: "Kembang Cumi" }, { nama: "Cikuwa" }, { nama: "Bakso Salmon" }, 
+    { nama: "Tofu Ikan" }, { nama: "Udang" }, { nama: "Otak Otak" }, { nama: "Scallop" }, { nama: "Bakso Udang" }, 
+    { nama: "Bakso Ikan" }, { nama: "Cornet Ayam" }, { nama: "Siomay Kering" }, { nama: "Cuanki Lidah" }, { nama: "Mie Kering" }, 
+    { nama: "Mie Sakura" }, { nama: "Sosis Kimbo" }, { nama: "Sosis Merah" }, { nama: "Bakso Kecil (isi 3)" }, { nama: "Kue Ikan" }, 
+    { nama: "Nugget Crab" }, { nama: "Otak Otak Roll" }, { nama: "Dumpling Merah" }, { nama: "Dumpling Rendang" }, 
+    { nama: "Dumpling Kari" }, { nama: "Bola Lobster" }, { nama: "Mie Pangsit" }, { nama: "Mie Basah" }, { nama: "Mie Bihun" }, 
+    { nama: "Batagor Kering (isi 3)" }, { nama: "Odeng" }, { nama: "Coin Star" }, { nama: "Aneka Kerupuk" }, { nama: "Kikil Sapi" }, 
+    { nama: "Bakso Tahu" }, { nama: "Kangkung" }, { nama: "Burger Chup" }, { nama: "Tauge" }
+];
+
+let statusMenu = JSON.parse(localStorage.getItem('statusMenu')) || {};
+let statusTopping = JSON.parse(localStorage.getItem('statusTopping')) || {};
+
+function renderDapurControl() {
+    let menuHtml = '';
+    MASTER_MENU.forEach(menu => {
+        let status = statusMenu[menu.nama] || 'tersedia';
+        let classHabis = status === 'habis' ? 'habis' : '';
+        let indicator = status === 'tersedia' ? '<span class="status-indicator ready">READY</span>' : '<span class="status-indicator empty">HABIS</span>';
+        menuHtml += `<button class="dapur-btn ${classHabis}" onclick="toggleStatus('menu', '${menu.nama}')">${menu.nama} ${indicator}</button>`;
+    });
+    document.getElementById('dapurMenuGrid').innerHTML = menuHtml;
+
+    let toppingHtml = '';
+    MASTER_TOPPING.forEach(top => {
+        let status = statusTopping[top.nama] || 'tersedia';
+        let classHabis = status === 'habis' ? 'habis' : '';
+        let indicator = status === 'tersedia' ? '<span class="status-indicator ready">READY</span>' : '<span class="status-indicator empty">HABIS</span>';
+        toppingHtml += `<button class="dapur-btn ${classHabis}" onclick="toggleStatus('topping', '${top.nama}')">${top.nama} ${indicator}</button>`;
+    });
+    document.getElementById('dapurToppingGrid').innerHTML = toppingHtml;
+}
+
+function toggleStatus(jenis, namaKey) {
+    if (jenis === 'menu') {
+        statusMenu[namaKey] = (statusMenu[namaKey] === 'habis') ? 'tersedia' : 'habis';
+        localStorage.setItem('statusMenu', JSON.stringify(statusMenu));
+    } else {
+        statusTopping[namaKey] = (statusTopping[namaKey] === 'habis') ? 'tersedia' : 'habis';
+        localStorage.setItem('statusTopping', JSON.stringify(statusTopping));
+    }
+    renderDapurControl();
+}
+
+// Render saat pertama kali dimuat
+renderDapurControl();
+</script>
+</body>
+</html>
